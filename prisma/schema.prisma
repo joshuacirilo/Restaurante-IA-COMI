@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model AREA {
+  id        Int    @id(map: "PK__AREA__3213E83FBB483D78") @default(autoincrement())
+  id_public String @unique(map: "UQ__AREA__6604BED5227507E3") @default("newid()", map: "DF__AREA__id_public__5070F446") @db.VarChar(36)
+  nombre    String @db.VarChar(50)
+  MESA      MESA[]
+}
+
+model CLIENTE {
+  id                 Int       @id(map: "PK__CLIENTE__3213E83F8FE47ED8") @default(autoincrement())
+  id_public          String    @unique(map: "UQ__CLIENTE__6604BED5A3FAE542") @default("newid()", map: "DF__CLIENTE__id_publ__4BAC3F29") @db.VarChar(36)
+  nombre             String    @db.VarChar(100)
+  apellido           String    @db.VarChar(100)
+  correo_electronico String?   @db.VarChar(150)
+  numero_telefono    String?   @db.VarChar(20)
+  fecha_nacimiento   DateTime? @db.Date
+  puntos_lealtad     Int?      @default(0, map: "DF__CLIENTE__puntos___4CA06362")
+  RESERVA            RESERVA[]
+}
+
+model ESTADO_RESERVA {
+  id            Int       @id(map: "PK__ESTADO_R__3213E83FA6A7C729") @default(autoincrement())
+  nombre_estado String    @db.VarChar(30)
+  RESERVA       RESERVA[]
+}
+
+model MESA {
+  id              Int       @id(map: "PK__MESA__3213E83F922130FC") @default(autoincrement())
+  id_public       String    @unique(map: "UQ__MESA__6604BED59827476A") @default("newid()", map: "DF__MESA__id_public__5441852A") @db.VarChar(36)
+  numero_mesa     Int
+  capacidad       Int
+  id_area         Int?
+  bloqueada_hasta DateTime? @db.DateTime
+  AREA            AREA?     @relation(fields: [id_area], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK__MESA__id_area__5535A963")
+  RESERVA         RESERVA[]
+}
+
+model RESERVA {
+  id                Int            @id(map: "PK__RESERVA__3213E83FF39233C0") @default(autoincrement())
+  id_public         String         @unique(map: "UQ__RESERVA__6604BED546E2A7CF") @default("newid()", map: "DF__RESERVA__id_publ__5AEE82B9") @db.VarChar(36)
+  id_cliente        Int
+  id_mesa           Int
+  id_estado         Int
+  fecha_hora_inicio DateTime       @db.DateTime
+  fecha_hora_fin    DateTime       @db.DateTime
+  num_personas      Int
+  notas             String?        @db.VarChar(255)
+  CLIENTE           CLIENTE        @relation(fields: [id_cliente], references: [id], onUpdate: NoAction, map: "FK__RESERVA__id_clie__5BE2A6F2")
+  ESTADO_RESERVA    ESTADO_RESERVA @relation(fields: [id_estado], references: [id], onUpdate: NoAction, map: "FK__RESERVA__id_esta__5DCAEF64")
+  MESA              MESA           @relation(fields: [id_mesa], references: [id], onUpdate: NoAction, map: "FK__RESERVA__id_mesa__5CD6CB2B")
+}

@@ -1,0 +1,17 @@
+import type { Metadata } from "next";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "Restaurante IA COMI",
+  description: "Base de Next.js + Prisma 6"
+};
+
+export default function RootLayout({
+  children
+}: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <html lang="es">
+      <body>{children}</body>
+    </html>
+  );
+}
