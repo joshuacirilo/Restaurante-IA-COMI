@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { withDbRetry } from "@/lib/db-retry";
 
 type CreateEstadoBody = {
   nombre_estado?: string;
 };
 
 export async function GET() {
-  const estados = await prisma.eSTADO_RESERVA.findMany({
-    orderBy: { id: "desc" }
-  });
+  const estados = await withDbRetry(() =>
+    prisma.eSTADO_RESERVA.findMany({
+      orderBy: { id: "desc" }
+    })
+  );
 
   return NextResponse.json(estados);
 }

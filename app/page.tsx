@@ -22,15 +22,6 @@ type Reserva = {
   fecha_hora_fin: string;
 };
 
-type EstadoReserva = {
-  id: number;
-  nombre_estado: string;
-};
-
-type Cliente = {
-  id: number;
-};
-
 type AvailabilityResult = {
   available: boolean;
   mesa: Mesa | null;
@@ -190,37 +181,24 @@ export default function LandingPage() {
         currentAvailability.mesasDisponibles.find((mesa) => mesa.id === selectedMesaId) ??
         currentAvailability.mesa;
 
-      const cliente = await requestJson<Cliente>("/api/clientes", {
+      const reserva = await requestJson<{ id_public: string; numero_mesa: number }>(
+        "/api/public/reserva",
+        {
         method: "POST",
         body: JSON.stringify({
           nombre: form.nombre,
           apellido: form.apellido,
           correo_electronico: form.correo_electronico || null,
           numero_telefono: form.numero_telefono || null,
-          fecha_nacimiento: form.fecha_nacimiento || null
-        })
-      });
-
-      const estados = await requestJson<EstadoReserva[]>("/api/estado_reserva", { cache: "no-store" });
-      const estadoDefault =
-        estados.find((eState) => eState.nombre_estado.toLowerCase().includes("pend")) ?? estados[0];
-
-      if (!estadoDefault) {
-        throw new Error("No hay estados de reserva configurados");
-      }
-
-      const reserva = await requestJson<{ id_public: string }>("/api/reservas", {
-        method: "POST",
-        body: JSON.stringify({
-          id_cliente: cliente.id,
+          fecha_nacimiento: form.fecha_nacimiento || null,
           id_mesa: mesaSeleccionada.id,
-          id_estado: estadoDefault.id,
           fecha_hora_inicio: new Date(form.fecha_hora_inicio).toISOString(),
           fecha_hora_fin: new Date(form.fecha_hora_fin).toISOString(),
           num_personas: Number(form.num_personas),
           notas: form.notas || null
         })
-      });
+      }
+      );
 
       setReservationCode(reserva.id_public);
       setAvailability({

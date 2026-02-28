@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createPublicId } from "@/lib/id-public";
+import { withDbRetry } from "@/lib/db-retry";
 
 type CreateClienteBody = {
   nombre?: string;
@@ -22,9 +23,11 @@ function isValidEmail(value: string): boolean {
 }
 
 export async function GET() {
-  const clientes = await prisma.cLIENTE.findMany({
-    orderBy: { id: "desc" }
-  });
+  const clientes = await withDbRetry(() =>
+    prisma.cLIENTE.findMany({
+      orderBy: { id: "desc" }
+    })
+  );
 
   return NextResponse.json(clientes);
 }

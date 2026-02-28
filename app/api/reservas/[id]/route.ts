@@ -1,5 +1,6 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { withDbRetry } from "@/lib/db-retry";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -28,14 +29,16 @@ export async function GET(_: NextRequest, { params }: Params) {
   const parsedId = parseId((await params).id);
   if (!parsedId) return NextResponse.json({ error: "id invalido" }, { status: 400 });
 
-  const reserva = await prisma.rESERVA.findUnique({
-    where: { id: parsedId },
-    include: {
-      CLIENTE: true,
-      MESA: true,
-      ESTADO_RESERVA: true
-    }
-  });
+  const reserva = await withDbRetry(() =>
+    prisma.rESERVA.findUnique({
+      where: { id: parsedId },
+      include: {
+        CLIENTE: true,
+        MESA: true,
+        ESTADO_RESERVA: true
+      }
+    })
+  );
 
   if (!reserva) return NextResponse.json({ error: "reserva no encontrada" }, { status: 404 });
   return NextResponse.json(reserva);
@@ -45,11 +48,26 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const parsedId = parseId((await params).id);
   if (!parsedId) return NextResponse.json({ error: "id invalido" }, { status: 400 });
 
+  const existing = await withDbRetry(() =>
+    prisma.rESERVA.findUnique({
+      where: { id: parsedId },
+      select: { id: true }
+    })
+  );
+  if (!existing) return NextResponse.json({ error: "reserva no encontrada" }, { status: 404 });
+
   const body = (await req.json()) as UpdateReservaBody;
+
+  if (body.id_estado !== undefined) {
+    const nuevoEstado = Number(body.id_estado);
+    if (!Number.isInteger(nuevoEstado) || nuevoEstado <= 0) {
+      return NextResponse.json({ error: "id_estado invalido" }, { status: 400 });
+    }
+  }
+
   const data: {
     id_cliente?: number;
     id_mesa?: number;
-    id_estado?: number;
     fecha_hora_inicio?: Date;
     fecha_hora_fin?: Date;
     num_personas?: number;
@@ -58,7 +76,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   if (body.id_cliente !== undefined) data.id_cliente = body.id_cliente;
   if (body.id_mesa !== undefined) data.id_mesa = body.id_mesa;
-  if (body.id_estado !== undefined) data.id_estado = body.id_estado;
   if (body.num_personas !== undefined) data.num_personas = body.num_personas;
   if (body.notas !== undefined) data.notas = body.notas ? body.notas.trim() : null;
 
@@ -75,10 +92,39 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   try {
-    const updated = await prisma.rESERVA.update({ where: { id: parsedId }, data });
+    if (body.id_estado !== undefined) {
+      await withDbRetry(() =>
+        prisma.$executeRawUnsafe(
+          `
+          EXEC dbo.sp_CambioEstadoReserva
+            @Id_Reserva = ?,
+            @Nuevo_Estado = ?;
+          `,
+          parsedId,
+          body.id_estado
+        )
+      );
+    }
+
+    const hasOtherFields = Object.keys(data).length > 0;
+    if (hasOtherFields) {
+      await withDbRetry(() => prisma.rESERVA.update({ where: { id: parsedId }, data }));
+    }
+
+    const updated = await withDbRetry(() =>
+      prisma.rESERVA.findUnique({
+        where: { id: parsedId },
+        include: {
+          CLIENTE: true,
+          MESA: true,
+          ESTADO_RESERVA: true
+        }
+      })
+    );
+
     return NextResponse.json(updated);
   } catch {
-    return NextResponse.json({ error: "reserva no encontrada" }, { status: 404 });
+    return NextResponse.json({ error: "no se pudo actualizar la reserva" }, { status: 500 });
   }
 }
 
@@ -87,7 +133,7 @@ export async function DELETE(_: NextRequest, { params }: Params) {
   if (!parsedId) return NextResponse.json({ error: "id invalido" }, { status: 400 });
 
   try {
-    await prisma.rESERVA.delete({ where: { id: parsedId } });
+    await withDbRetry(() => prisma.rESERVA.delete({ where: { id: parsedId } }));
     return new NextResponse(null, { status: 204 });
   } catch {
     return NextResponse.json({ error: "reserva no encontrada" }, { status: 404 });

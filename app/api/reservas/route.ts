@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createPublicId } from "@/lib/id-public";
+import { withDbRetry } from "@/lib/db-retry";
 
 type CreateReservaBody = {
   id_cliente?: number;
@@ -23,14 +24,16 @@ function parseDate(value: unknown): Date | null {
 }
 
 export async function GET() {
-  const reservas = await prisma.rESERVA.findMany({
-    orderBy: { fecha_hora_inicio: "desc" },
-    include: {
-      CLIENTE: true,
-      MESA: true,
-      ESTADO_RESERVA: true
-    }
-  });
+  const reservas = await withDbRetry(() =>
+    prisma.rESERVA.findMany({
+      orderBy: { fecha_hora_inicio: "desc" },
+      include: {
+        CLIENTE: true,
+        MESA: true,
+        ESTADO_RESERVA: true
+      }
+    })
+  );
 
   return NextResponse.json(reservas);
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createPublicId } from "@/lib/id-public";
+import { withDbRetry } from "@/lib/db-retry";
 
 type CreateMesaBody = {
   numero_mesa?: number;
@@ -20,10 +21,12 @@ function parseDate(value: string | null | undefined): Date | null {
 }
 
 export async function GET() {
-  const mesas = await prisma.mESA.findMany({
-    orderBy: { id: "desc" },
-    include: { AREA: true }
-  });
+  const mesas = await withDbRetry(() =>
+    prisma.mESA.findMany({
+      orderBy: { id: "desc" },
+      include: { AREA: true }
+    })
+  );
 
   return NextResponse.json(mesas);
 }
