@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withDbRetry } from "@/lib/db-retry";
+import { Prisma } from "@prisma/client";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -94,14 +95,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   try {
     if (body.id_estado !== undefined) {
       await withDbRetry(() =>
-        prisma.$executeRawUnsafe(
-          `
+        prisma.$executeRaw(
+          Prisma.sql`
           EXEC dbo.sp_CambioEstadoReserva
-            @Id_Reserva = ?,
-            @Nuevo_Estado = ?;
-          `,
-          parsedId,
-          body.id_estado
+            @Id_Reserva = ${parsedId},
+            @Nuevo_Estado = ${body.id_estado};
+          `
         )
       );
     }

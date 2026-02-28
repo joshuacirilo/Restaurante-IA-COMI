@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withDbRetry } from "@/lib/db-retry";
+import { Prisma } from "@prisma/client";
 
 type PublicReservaBody = {
   nombre?: string;
@@ -86,22 +87,16 @@ async function executeCrearReservaSp(params: {
   // Exact signature from DB:
   // @Id_Cliente, @Id_Mesa, @Fecha_Hora_Inicio, @Fecha_Hora_Fin, @Num_Personas, @Notas
   await withDbRetry(() =>
-    prisma.$executeRawUnsafe(
-      `
+    prisma.$executeRaw(
+      Prisma.sql`
       EXEC dbo.sp_CrearReserva
-        @Id_Cliente = ?,
-        @Id_Mesa = ?,
-        @Fecha_Hora_Inicio = ?,
-        @Fecha_Hora_Fin = ?,
-        @Num_Personas = ?,
-        @Notas = ?;
-      `,
-      params.idCliente,
-      params.idMesa,
-      params.inicio,
-      params.fin,
-      params.personas,
-      params.notas
+        @Id_Cliente = ${params.idCliente},
+        @Id_Mesa = ${params.idMesa},
+        @Fecha_Hora_Inicio = ${params.inicio},
+        @Fecha_Hora_Fin = ${params.fin},
+        @Num_Personas = ${params.personas},
+        @Notas = ${params.notas};
+      `
     )
   );
 }
@@ -150,23 +145,18 @@ export async function POST(req: NextRequest) {
 
     // Read reservation just created by SP to return id_public.
     const rows = await withDbRetry(() =>
-      prisma.$queryRawUnsafe<Array<{ id_public: string; numero_mesa: number }>>(
-        `
+      prisma.$queryRaw<Array<{ id_public: string; numero_mesa: number }>>(
+        Prisma.sql`
         SELECT TOP 1 r.id_public, m.numero_mesa
         FROM RESERVA r
         INNER JOIN MESA m ON m.id = r.id_mesa
-        WHERE r.id_cliente = ?
-          AND r.id_mesa = ?
-          AND r.fecha_hora_inicio = ?
-          AND r.fecha_hora_fin = ?
-          AND r.num_personas = ?
+        WHERE r.id_cliente = ${idCliente}
+          AND r.id_mesa = ${body.id_mesa}
+          AND r.fecha_hora_inicio = ${inicio}
+          AND r.fecha_hora_fin = ${fin}
+          AND r.num_personas = ${body.num_personas}
         ORDER BY r.id DESC;
-        `,
-        idCliente,
-        body.id_mesa,
-        inicio,
-        fin,
-        body.num_personas
+        `
       )
     );
 
@@ -189,4 +179,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

@@ -29,6 +29,11 @@ type AvailabilityResult = {
   message: string;
 };
 
+type ConfirmedReservation = {
+  id_public: string;
+  numero_mesa: number;
+};
+
 type FormState = {
   nombre: string;
   apellido: string;
@@ -82,7 +87,8 @@ export default function LandingPage() {
   const [availability, setAvailability] = useState<AvailabilityResult | null>(null);
   const [showAvailabilityMenu, setShowAvailabilityMenu] = useState(false);
   const [selectedMesaId, setSelectedMesaId] = useState<number | null>(null);
-  const [reservationCode, setReservationCode] = useState<string | null>(null);
+  const [confirmedReservation, setConfirmedReservation] = useState<ConfirmedReservation | null>(null);
+  const [showReservationModal, setShowReservationModal] = useState(false);
 
   const numPersonas = useMemo(() => Number(form.num_personas || 0), [form.num_personas]);
   const canCheckAvailability =
@@ -140,7 +146,7 @@ export default function LandingPage() {
   async function handleCheckAvailability() {
     setChecking(true);
     setError(null);
-    setReservationCode(null);
+    setShowReservationModal(false);
     setShowAvailabilityMenu(true);
 
     try {
@@ -165,7 +171,7 @@ export default function LandingPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setReservationCode(null);
+    setShowReservationModal(false);
 
     try {
       let currentAvailability = availability;
@@ -200,7 +206,8 @@ export default function LandingPage() {
       }
       );
 
-      setReservationCode(reserva.id_public);
+      setConfirmedReservation(reserva);
+      setShowReservationModal(true);
       setAvailability({
         available: true,
         mesa: mesaSeleccionada,
@@ -335,18 +342,39 @@ export default function LandingPage() {
           </form>
         </section>
 
-        {reservationCode && availability?.mesa && (
-          <section className="rounded-lg border border-[#f4c025]/50 bg-[#fff8e8] p-5 shadow-sm">
-            <h2 className="text-lg font-bold text-[#14213D]">Reserva Confirmada</h2>
-            <p className="mt-2 text-sm text-[#14213D]">Mesa asignada: <strong>{availability.mesa.numero_mesa}</strong></p>
-            <p className="mt-1 text-sm text-[#14213D]">Numero de reserva (`id_public`): <strong>{reservationCode}</strong></p>
-          </section>
-        )}
-
         <footer className="pb-4 text-center text-xs text-slate-500">
           Al confirmar aceptas nuestras politicas de reserva y cancelacion.
         </footer>
       </div>
+
+      {showReservationModal && confirmedReservation && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
+          onClick={() => setShowReservationModal(false)}
+        >
+          <section
+            className="w-full max-w-lg rounded-lg border border-[#f4c025]/50 bg-[#fff8e8] p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="text-lg font-bold text-[#14213D]">Reserva Confirmada</h2>
+              <button
+                type="button"
+                onClick={() => setShowReservationModal(false)}
+                className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
+              >
+                Cerrar
+              </button>
+            </div>
+            <p className="mt-3 text-sm text-[#14213D]">
+              Mesa asignada: <strong>{confirmedReservation.numero_mesa}</strong>
+            </p>
+            <p className="mt-1 text-sm text-[#14213D]">
+              Numero de reserva (`id_public`): <strong>{confirmedReservation.id_public}</strong>
+            </p>
+          </section>
+        </div>
+      )}
 
       {showAvailabilityMenu && (
         <div
